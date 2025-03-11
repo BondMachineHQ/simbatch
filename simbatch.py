@@ -151,6 +151,7 @@ for line in input_file_handle:
 			output_file_handle.write(outline+"\n")
 		else:
 			outline=outline.strip(',')
+			outline=outline.replace(" ",",")
 			output_file_handle.write(outline+"\n")
 
 	else:
