@@ -8,13 +8,15 @@ working_dir=""
 input_file=""
 output_file=""
 simulation_steps="200"
-isforml=False
+isml=False
+benchCore=False
+stopOnValidOf=-1
 linear_data_range=""
 data_type="float32"
 prefix="0f"
 
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:md:", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "linear-data-range=","data-type="])
+	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of="])
 except  getopt.GetoptError:
 	sys.exit(2)
 
@@ -33,7 +35,11 @@ for o, a in opts:
 	elif o in ("-d", "--data-type"):
 		data_type = a
 	elif o in ("-m", "--ml"):
-		isforml = True
+		isml = True
+	elif o in ("-b", "--benchcore"):
+		benchCore = True
+	elif o in ("-v", "--stop-on-valid-of"):
+		stopOnValidOf = int(a)
 
 if working_dir == "":
 	working_dir="working_dir"
@@ -91,7 +97,7 @@ if p.returncode==0:
 input_file_handle=open(input_file, "r")
 output_file_handle=open(output_file, "w")
 
-if isforml:
+if isml:
 	for i in range(len(outputs)):
 		output_file_handle.write("probability_"+str(i)+",")
 	output_file_handle.write("classification\n")
@@ -141,7 +147,7 @@ for line in input_file_handle:
 		outline=p.stdout.read().decode().strip()
 		outline=outline.replace(prefix,"")
 		
-		if isforml:
+		if isml:
 			import numpy as np
 			vals=np.asarray(outline.split(' '))
 			vals=vals.astype(np.float32)
