@@ -4,6 +4,28 @@ import sys
 import subprocess
 import getopt
 
+def usage():
+	print("SimBatch: A batch simulator for BondMachine designs")
+	print("")
+	print("SimBatch allows you to run batch simulations of BondMachine designs using a CSV input file and producing a CSV output file.")
+	print("It expects the BondMachine design to be already compiled in the working directory called `bondmachine.json`.")
+	print("")
+	print("Usage: simbatch [options]")
+	print("Options:")
+	print("  -w, --working-dir DIR        set the working directory (default: working_dir)")
+	print("  -i, --input-file FILE        set the input CSV file (default: simbatch_input.csv)")
+	print("  -o, --output-file FILE       set the output CSV file (default: working_dir/simbatch_output.csv)")
+	print("  -s, --simulation-steps N     number of simulation steps (default: 200)")
+	print("  -m, --ml                    enable ML output formatting (probabilities + classification)")
+	print("  -b, --benchcore             enable benchcore mode")
+	print("  -d, --data-type TYPE        data type for outputs (e.g. float32) (default: float32)")
+	print("  --linear-data-range RANGE   pass a linear data range option to bondmachine/bmnumbers")
+	print("  -v, --stop-on-valid-of N    stop on valid of output index N")
+	print("  -h, --help                  show this help message and exit")
+	print("")
+	print("Example:")
+	print("  simbatch.py -w working_dir -i input.csv -o out.csv -s 200")
+
 working_dir=""
 input_file=""
 output_file=""
@@ -16,8 +38,9 @@ data_type="float32"
 prefix="0f"
 
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of="])
+	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:h", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help"])
 except  getopt.GetoptError:
+	usage()
 	sys.exit(2)
 
 
@@ -38,6 +61,9 @@ for o, a in opts:
 		isml = True
 	elif o in ("-b", "--benchcore"):
 		benchCore = True
+	elif o in ("-h", "--help"):
+		usage()
+		sys.exit(0)
 	elif o in ("-v", "--stop-on-valid-of"):
 		stopOnValidOf = int(a)
 
@@ -116,7 +142,28 @@ for line in input_file_handle:
 		p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 		p.wait()
 
-		# Create the simbox file
+		# Prepare the simbox general commands, like showing IOs, ticks, pc, disasm, etc.
+		# These are useful for debugging and are disabled by default
+		commands=[]
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"config:show_io_pre\"")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -suspend 0") 
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"config:show_io_post\"")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -suspend 1")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"config:show_ticks\"")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -suspend 2")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"config:show_pc\"")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -suspend 3")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"config:show_disasm\"")
+		commands.append("simbox -simbox-file "+working_dir+"/simboxtemp.json -suspend 4")
+
+		for command in commands:
+			p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+			p.wait()
+			if p.returncode!=0:
+				print ("Error preparing simbox command: "+command)
+				sys.exit(2)
+
+		# Add the inputs to the simbox
 		for i in range(len(inputs_values)):
 			input_name=inputs[str(i)]
 			input_value=inputs_values[i]
@@ -127,6 +174,7 @@ for line in input_file_handle:
 				print ("Error setting input "+input_name+" to "+input_value)
 				sys.exit(2)
 
+		# Prepare the outputs to be collected
 		for output_name in outputs:
 			command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"onvalid:show:"+outputs[output_name]+":"+data_type+"\""
 			p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
