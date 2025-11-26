@@ -16,12 +16,14 @@ def usage():
 	print("  -i, --input-file FILE        set the input CSV file (default: simbatch_input.csv)")
 	print("  -o, --output-file FILE       set the output CSV file (default: working_dir/simbatch_output.csv)")
 	print("  -s, --simulation-steps N     number of simulation steps (default: 200)")
-	print("  -m, --ml                    enable ML output formatting (probabilities + classification)")
-	print("  -b, --benchcore             enable benchcore mode")
-	print("  -d, --data-type TYPE        data type for outputs (e.g. float32) (default: float32)")
-	print("  --linear-data-range RANGE   pass a linear data range option to bondmachine/bmnumbers")
-	print("  -v, --stop-on-valid-of N    stop on valid of output index N")
-	print("  -h, --help                  show this help message and exit")
+	print("  -m, --ml                     enable ML output formatting (probabilities + classification)")
+	print("  -b, --benchcore              enable benchcore mode")
+	print("  -H, --header                 include header row in output CSV")
+	print("  -P, --prefix                 include data type prefix in output CSV")
+	print("  -d, --data-type TYPE         data type for outputs (e.g. float32) (default: float32)")
+	print("  --linear-data-range RANGE    pass a linear data range option to bondmachine/bmnumbers")
+	print("  -v, --stop-on-valid-of N     stop on valid of output index N")
+	print("  -h, --help                   show this help message and exit")
 	print("")
 	print("Example:")
 	print("  simbatch.py -w working_dir -i input.csv -o out.csv -s 200")
@@ -36,9 +38,12 @@ stopOnValidOf=-1
 linear_data_range=""
 data_type="float32"
 prefix="0f"
+header=False
+omit_prefix=True
 
+# Parse command line options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:h", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help"])
+	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:hH", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help", "header"])
 except  getopt.GetoptError:
 	usage()
 	sys.exit(2)
@@ -66,6 +71,10 @@ for o, a in opts:
 		sys.exit(0)
 	elif o in ("-v", "--stop-on-valid-of"):
 		stopOnValidOf = int(a)
+	elif o in ("-H", "--header"):
+		header = True
+	elif o in ("-P", "--prefix"):
+		omit_prefix = False
 
 if working_dir == "":
 	working_dir="working_dir"
@@ -123,10 +132,15 @@ if p.returncode==0:
 input_file_handle=open(input_file, "r")
 output_file_handle=open(output_file, "w")
 
-if isml:
-	for i in range(len(outputs)):
-		output_file_handle.write("probability_"+str(i)+",")
-	output_file_handle.write("classification\n")
+# Write the output file header if needed
+if header:
+	if isml:
+		for i in range(len(outputs)):
+			output_file_handle.write("probability_"+str(i)+",")
+		output_file_handle.write("classification")
+	if benchCore:
+		output_file_handle.write(",latency_cycles")
+	output_file_handle.write("\n")
 
 # Read every line of the input file
 for line in input_file_handle:
@@ -176,7 +190,10 @@ for line in input_file_handle:
 
 		# Prepare the outputs to be collected
 		for output_name in outputs:
-			command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"onvalid:show:"+outputs[output_name]+":"+data_type+"\""
+			if benchCore and outputs[output_name]=="o"+str(len(outputs)-1):
+				command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"onexit:show:"+outputs[output_name]+":unsigned\""
+			else:
+				command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"onexit:show:"+outputs[output_name]+":"+data_type+"\""
 			p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 			p.wait()
 			if p.returncode!=0:
@@ -195,20 +212,31 @@ for line in input_file_handle:
 			sys.exit(2)
 
 		outline=p.stdout.read().decode().strip()
-		outline=outline.replace(prefix,"")
-		
+		if omit_prefix:
+			outline=outline.replace(prefix,"")
+
+		# If there is an active benchCore mode, extract the latency cycles that is the last output
+		if benchCore:
+			parts=outline.split(' ')
+			latency_cycles=parts[-1]
+			outline=" ".join(parts[:-1])
+
 		if isml:
 			import numpy as np
 			vals=np.asarray(outline.split(' '))
-			vals=vals.astype(np.float32)
+			vals=vals.astype(np.float32) # TODO: make this configurable
 			index=np.argmax(vals)
 			outline=outline.replace(" ",",")
 			outline=outline+ "," + str(index)
-			output_file_handle.write(outline+"\n")
 		else:
 			outline=outline.strip(',')
 			outline=outline.replace(" ",",")
-			output_file_handle.write(outline+"\n")
+
+		# Write the output line eventually adding the latency cycles at the end
+		output_file_handle.write(outline)
+		if benchCore:
+			output_file_handle.write(","+latency_cycles)
+		output_file_handle.write("\n")
 
 	else:
 		print("Error: The input file has an invalid number of columns")
