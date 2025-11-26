@@ -128,15 +128,17 @@ for line in input_file_handle:
 				sys.exit(2)
 
 		for output_name in outputs:
-			command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"absolute:"+last_step+":show:"+outputs[output_name]+":"+data_type+"\""
+			command="simbox -simbox-file "+working_dir+"/simboxtemp.json -add \"onvalid:show:"+outputs[output_name]+":"+data_type+"\""
 			p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 			p.wait()
 			if p.returncode!=0:
 				print ("Error getting output "+output_name)
 				sys.exit(2)
 
+		stopOnValidOf=len(outputs)-1
+
 		# Run the simulation
-		command="bondmachine -bondmachine-file "+working_dir+"/bondmachine.json -simbox-file "+working_dir+"/simboxtemp.json -sim -sim-interactions "+simulation_steps+" "+linear_data_range
+		command="bondmachine -bondmachine-file "+working_dir+"/bondmachine.json -simbox-file "+working_dir+"/simboxtemp.json -sim-stop-on-valid-of "+str(stopOnValidOf)+" -sim -sim-interactions "+simulation_steps+" "+linear_data_range
 		p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 		p.wait()
 		if p.returncode!=0:
