@@ -43,7 +43,7 @@ omit_prefix=True
 
 # Parse command line options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:v:hH", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help", "header"])
+	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:l:v:hH", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help", "header"])
 except  getopt.GetoptError:
 	usage()
 	sys.exit(2)
@@ -58,7 +58,7 @@ for o, a in opts:
 		output_file = a
 	elif o in ("-s", "--simulation-steps"):
 		simulation_steps = a
-	elif o in ("--linear-data-range"):
+	elif o in ("-l", "--linear-data-range"):
 		linear_data_range = "-linear-data-range "+a
 	elif o in ("-d", "--data-type"):
 		data_type = a
