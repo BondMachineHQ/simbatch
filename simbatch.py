@@ -24,6 +24,7 @@ def usage():
 	print("  --linear-data-range RANGE    pass a linear data range option to bondmachine/bmnumbers")
 	print("  -v, --stop-on-valid-of N     stop on valid of output index N")
 	print("  -h, --help                   show this help message and exit")
+	print("  -l, --delays-file FILE       set the delays file")
 	print("")
 	print("Example:")
 	print("  simbatch.py -w working_dir -i input.csv -o out.csv -s 200")
@@ -40,10 +41,12 @@ data_type="float32"
 prefix="0f"
 header=False
 omit_prefix=True
+delays_file=False
+delay_string=""
 
 # Parse command line options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:l:v:hH", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help", "header"])
+	opts, args = getopt.getopt(sys.argv[1:], "w:i:o:s:mbd:l:v:hHy:", ["working-dir=","input-file=","output-file=", "simulation-steps=","ml", "benchcore", "linear-data-range=","data-type=", "stop-on-valid-of=", "help", "header","delays-file="])
 except  getopt.GetoptError:
 	usage()
 	sys.exit(2)
@@ -75,6 +78,8 @@ for o, a in opts:
 		header = True
 	elif o in ("-P", "--prefix"):
 		omit_prefix = False
+	elif o in ("-y", "--delays-file"):
+		delays_file = a
 
 if working_dir == "":
 	working_dir="working_dir"
@@ -82,6 +87,8 @@ if input_file == "":
 	input_file="simbatch_input.csv"
 if output_file == "":
 	output_file=working_dir+"/simbatch_output.csv"
+if delays_file:
+	delay_string="-sim-delays-file "+delays_file
 
 last_step = str(int(simulation_steps) - 1)
 
@@ -203,7 +210,7 @@ for line in input_file_handle:
 		stopOnValidOf=len(outputs)-1
 
 		# Run the simulation
-		command="bondmachine -bondmachine-file "+working_dir+"/bondmachine.json -simbox-file "+working_dir+"/simboxtemp.json -sim-stop-on-valid-of "+str(stopOnValidOf)+" -sim -sim-interactions "+simulation_steps+" "+linear_data_range
+		command="bondmachine -bondmachine-file "+working_dir+"/bondmachine.json "+delay_string+" -simbox-file "+working_dir+"/simboxtemp.json -sim-stop-on-valid-of "+str(stopOnValidOf)+" -sim -sim-interactions "+simulation_steps+" "+linear_data_range
 		p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 		p.wait()
 		if p.returncode!=0:
