@@ -11,20 +11,20 @@ import (
 )
 
 type Config struct {
-	workingDir       string
-	inputFile        string
-	outputFile       string
-	simulationSteps  string
-	isML             bool
-	benchCore        bool
-	stopOnValidOf    int
-	linearDataRange  string
-	dataType         string
-	prefix           string
-	header           bool
-	omitPrefix       bool
-	delaysFile       string
-	delayString      string
+	workingDir      string
+	inputFile       string
+	outputFile      string
+	simulationSteps string
+	isML            bool
+	benchCore       bool
+	stopOnValidOf   int
+	linearDataRange string
+	dataType        string
+	prefix          string
+	header          bool
+	omitPrefix      bool
+	delaysFile      string
+	delayString     string
 }
 
 func usage() {
@@ -283,12 +283,13 @@ func main() {
 		}
 
 		// Prepare outputs
-		for outputName, outputVal := range outputs {
+		for i := 0; i < len(outputs); i++ {
+			outputName := outputs[strconv.Itoa(i)]
 			var cmd string
-			if cfg.benchCore && outputVal == "o"+strconv.Itoa(len(outputs)-1) {
-				cmd = fmt.Sprintf("simbox -simbox-file %s -add \"onexit:show:%s:unsigned\"", simboxFile, outputVal)
+			if cfg.benchCore && outputName == "o"+strconv.Itoa(len(outputs)-1) {
+				cmd = fmt.Sprintf("simbox -simbox-file %s -add \"onexit:show:%s:unsigned\"", simboxFile, outputName)
 			} else {
-				cmd = fmt.Sprintf("simbox -simbox-file %s -add \"onexit:show:%s:%s\"", simboxFile, outputVal, cfg.dataType)
+				cmd = fmt.Sprintf("simbox -simbox-file %s -add \"onexit:show:%s:%s\"", simboxFile, outputName, cfg.dataType)
 			}
 			if _, err := runCommand(cmd); err != nil {
 				fmt.Fprintf(os.Stderr, "Error getting output %s\n%v\n", outputName, err)
